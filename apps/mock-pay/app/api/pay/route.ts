@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { parsePayOptions } from "@/lib/options";
 import { buildSampleTransaction } from "@/lib/sample-transaction";
 
-export async function POST() {
+export async function POST(request: Request) {
   const apiUrl = process.env.RECEIPTS_API_URL?.replace(/\/$/, "");
   const apiKey = process.env.RECEIPTS_API_KEY;
   if (!apiUrl || !apiKey) {
@@ -11,7 +12,8 @@ export async function POST() {
     );
   }
 
-  const transaction = buildSampleTransaction();
+  const options = parsePayOptions(await request.json().catch(() => null));
+  const transaction = buildSampleTransaction(options);
 
   let res: Response;
   try {

@@ -22,16 +22,21 @@ apps/
     lib/supabase.ts                 Service-role Supabase client (server-only)
     public/merchant-logo.svg        Static placeholder merchant logo shown on every receipt
   mock-pay/                 # Fake POS terminal (port 3001)
-    app/page.tsx                    Client page: Pay button, shows receipt URL as QR code
-    app/api/pay/route.ts            Server route: builds a sample transaction, POSTs to receipts API
-    lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values, random total)
+    app/page.tsx                    Client page (mobile-first): campaign / line items / colour options,
+                                    Pay button, then approved screen with receipt URL as QR code
+    app/api/pay/route.ts            Server route: takes PayOptions, builds a sample transaction, POSTs to receipts API
+    lib/options.ts                  Campaign presets, theme swatches, PayOptions + parser (client-safe)
+    lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values;
+                                    random total, or random items + 6% SST when itemised)
 supabase/migrations/        # SQL for the `receipts` table
 ```
 
 ## Request flow
 
-1. User clicks **Pay** in mock-pay -> browser calls `POST /api/pay` (mock-pay server).
-2. mock-pay server builds a sample transaction and calls
+1. User picks options and clicks **Pay** in mock-pay -> browser calls
+   `POST /api/pay` with `{ campaign, itemized, theme }` (mock-pay server).
+2. mock-pay server validates the options against its allow-lists, builds a
+   sample transaction and calls
    `POST {RECEIPTS_API_URL}/api/receipts` with `x-api-key: RECEIPTS_API_KEY`.
 3. receipts checks the key, validates the body with zod, generates a random
    receipt ID, inserts `{ id, transaction_id, data }` into Supabase, and returns
@@ -55,7 +60,7 @@ supabase/migrations/        # SQL for the `receipts` table
 - The receipt mirrors a card-terminal slip: merchant header, `{type} Successful`
   title, MID/TID, entry/card type, app name, masked card number, expiry, trace,
   approval code, ref no, batch, AID, total. Line items (`items`, `subtotal`,
-  `tax`) are optional and mock-pay doesn't send them.
+  `tax`) are optional; mock-pay sends them only when "itemised" is on.
 - Card data is validated so nothing sensitive is stored: `maskedPan` must be
   masked (first 6 + `*` + last 4) and `expiry` must be `**/**`.
 - `timestamp` carries the terminal's UTC offset; the receipt shows that
@@ -65,7 +70,8 @@ supabase/migrations/        # SQL for the `receipts` table
   in `apps/receipts/lib/themes.ts` (default `fasspay`). Each palette sets the
   page background gradient and an `--accent` CSS variable used by the campaign
   block. The paper receipt itself stays black-on-white. To add a palette, add
-  an entry there; the schema enum derives from it.
+  an entry there; the schema enum derives from it, and mirror the key in
+  `apps/mock-pay/lib/options.ts` (the two apps don't share code).
 - **Campaign** (optional): `{ title, body?, cta?: { label, url } }`, shown as a
   dashed voucher below the total. `cta.url` must be http(s).
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
