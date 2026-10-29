@@ -1,0 +1,12 @@
+{
+  "name": "receipt-prototype",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:receipts": "pnpm --filter receipts dev",
+    "dev:mock-pay": "pnpm --filter mock-pay dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
