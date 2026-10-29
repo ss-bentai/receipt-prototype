@@ -13,7 +13,7 @@ export default async function ReceiptPage({
 }) {
   const { id } = await params;
   return (
-    <main className="mx-auto max-w-md px-4 py-10 sm:py-16">
+    <main>
       <ReceiptView id={id} />
     </main>
   );

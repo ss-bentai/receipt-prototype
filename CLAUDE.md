@@ -16,6 +16,7 @@ apps/
     app/r/[id]/page.tsx             Receipt page shell (server component)
     app/r/[id]/receipt-view.tsx     Client component: fetches the GET API and renders
     lib/schema.ts                   zod schema for the transaction payload + Receipt type
+    lib/themes.ts                   Named colour palettes (theme key -> colours)
     lib/id.ts                       22-char base62 receipt ID generator (CSPRNG, no modulo bias)
     lib/auth.ts                     Constant-time x-api-key check
     lib/supabase.ts                 Service-role Supabase client (server-only)
@@ -60,7 +61,16 @@ supabase/migrations/        # SQL for the `receipts` table
 - `timestamp` carries the terminal's UTC offset; the receipt shows that
   wall-clock time as `DD/MM/YYYY HH:mm:ss`, independent of the viewer's timezone.
 - GET returns 410 for rows stored under an older schema that no longer validates.
-- Styling: Fasspay palette tokens (`brand-navy`, `brand-blue`, `brand-sky`) in
+- **Themes are named palettes, not raw colours.** `theme` is one of the keys
+  in `apps/receipts/lib/themes.ts` (default `fasspay`). Each palette sets the
+  page background gradient and an `--accent` CSS variable used by the campaign
+  block. The paper receipt itself stays black-on-white. To add a palette, add
+  an entry there; the schema enum derives from it.
+- **Campaign** (optional): `{ title, body?, cta?: { label, url } }`, shown as a
+  dashed voucher below the total. `cta.url` must be http(s).
+- Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
+  the background and buttons.
+- Default styling: Fasspay palette tokens (`brand-navy`, `brand-blue`, `brand-sky`) in
   `apps/receipts/app/globals.css`; `.torn-edges` gives the receipt zigzag edges.
 - `GET /api/receipts/[id]` is public: anyone with the ID can read the receipt.
   Malformed IDs return 404 without a DB query.

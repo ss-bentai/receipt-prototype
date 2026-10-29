@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_THEME, THEME_KEYS } from "./themes";
 
 const money = z.number().int().nonnegative(); // minor units, e.g. cents
 const digits = (min: number, max: number) =>
@@ -8,6 +9,17 @@ export const lineItemSchema = z.object({
   name: z.string().min(1).max(200),
   quantity: z.number().int().positive(),
   unitPrice: money,
+});
+
+export const campaignSchema = z.object({
+  title: z.string().min(1).max(80),
+  body: z.string().max(300).optional(),
+  cta: z
+    .object({
+      label: z.string().min(1).max(40),
+      url: z.url({ protocol: /^https?$/ }),
+    })
+    .optional(),
 });
 
 export const TRANSACTION_TYPES = {
@@ -53,7 +65,9 @@ export const transactionSchema = z.object({
     approvalCode: z.string().regex(/^[0-9A-Z]{6}$/i),
     refNo: digits(12, 12),
   }),
-  // Optional itemisation; terminals don't send it today.
+  theme: z.enum(THEME_KEYS).default(DEFAULT_THEME),
+  campaign: campaignSchema.optional(),
+  // Optional itemisation.
   items: z.array(lineItemSchema).min(1).max(100).optional(),
   subtotal: money.optional(),
   tax: money.optional(),

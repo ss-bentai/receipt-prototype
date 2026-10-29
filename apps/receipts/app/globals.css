@@ -16,3 +16,9 @@
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
       bottom / var(--tooth) 51% repeat-x;
 }
+
+@media print {
+  body {
+    background: none;
+  }
+}

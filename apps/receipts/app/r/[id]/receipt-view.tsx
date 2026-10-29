@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TRANSACTION_TYPES, type Receipt } from "@/lib/schema";
+import { TRANSACTION_TYPES, type Receipt, type Transaction } from "@/lib/schema";
+import { DEFAULT_THEME, THEMES, themeBackground } from "@/lib/themes";
 
 type State =
   | { status: "loading" }
@@ -33,8 +34,27 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
+function Campaign({ campaign }: { campaign: NonNullable<Transaction["campaign"]> }) {
+  return (
+    <section className="mt-6 rounded-lg border-2 border-dashed border-(--accent) bg-(--accent)/5 p-4 text-center">
+      <p className="text-lg font-extrabold text-(--accent)">{campaign.title}</p>
+      {campaign.body && <p className="mt-1 text-sm text-gray-600">{campaign.body}</p>}
+      {campaign.cta && (
+        <a
+          href={campaign.cta.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block rounded-full bg-(--accent) px-5 py-2 text-sm font-semibold text-white hover:opacity-90 print:hidden"
+        >
+          {campaign.cta.label}
+        </a>
+      )}
+    </section>
+  );
+}
+
 function Message({ children }: { children: React.ReactNode }) {
-  return <p className="text-center text-white/80">{children}</p>;
+  return <p className="px-4 py-16 text-center text-white/80">{children}</p>;
 }
 
 export default function ReceiptView({ id }: { id: string }) {
@@ -65,67 +85,92 @@ export default function ReceiptView({ id }: { id: string }) {
   const { transaction: tx } = state.receipt;
   const money = (minor: number) => formatMoney(minor, tx.currency);
   const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
+  const theme = THEMES[tx.theme] ? tx.theme : DEFAULT_THEME;
 
   return (
-    <div className="drop-shadow-2xl">
-      <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900">
-        <header className="text-center">
-          <img src="/merchant-logo.svg" alt="" className="mx-auto h-16 w-16" />
-          <h1 className="mt-3 text-lg font-bold uppercase">{tx.merchant.name}</h1>
-          {tx.merchant.address && (
-            <p className="mt-1 uppercase">{tx.merchant.address}</p>
-          )}
-        </header>
+    <div
+      className="min-h-dvh px-4 py-10 sm:py-16 print:bg-none! print:p-0"
+      style={
+        {
+          "--accent": THEMES[theme].accent,
+          background: themeBackground(theme),
+        } as React.CSSProperties
+      }
+    >
+      <div className="mx-auto w-full max-w-md lg:max-w-lg">
+        <div className="mb-6 hidden items-center justify-between sm:flex print:hidden">
+          <p className="text-sm font-medium tracking-wide text-white/80 uppercase">e-Receipt</p>
+          <button
+            onClick={() => window.print()}
+            className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white backdrop-blur hover:bg-white/25"
+          >
+            Print / Save PDF
+          </button>
+        </div>
 
-        <hr className="my-4 border-t-2 border-gray-900" />
+        <div className="drop-shadow-2xl print:drop-shadow-none">
+          <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900 sm:px-10 lg:text-base">
+            <header className="text-center">
+              <img src="/merchant-logo.svg" alt="" className="mx-auto h-16 w-16" />
+              <h1 className="mt-3 text-lg font-bold uppercase">{tx.merchant.name}</h1>
+              {tx.merchant.address && <p className="mt-1 uppercase">{tx.merchant.address}</p>}
+            </header>
 
-        <h2 className="mb-4 text-center text-xl font-extrabold uppercase">{title}</h2>
+            <hr className="my-4 border-t-2 border-gray-900" />
 
-        <dl>
-          <Row label="Date/Time" value={formatTerminalTime(tx.timestamp)} />
-          <Row label="MID" value={tx.terminal.mid} />
-          <Row label="TID" value={tx.terminal.tid} />
-          <Row label="Entry Type" value={tx.card.entryType} />
-          <Row label="Card Type" value={tx.card.cardType} />
-          <Row label="App Name" value={tx.card.appName} />
-          <div className="mt-3" />
-          <Row label="Card Number" value={tx.card.maskedPan} bold />
-          <Row label="Expiry" value={tx.card.expiry} />
-          <Row label="Trace No" value={tx.terminal.traceNo} />
-          <Row label="Approval Code" value={tx.authorization.approvalCode} />
-          <Row label="Ref No" value={tx.authorization.refNo} />
-          <Row label="Batch No" value={tx.terminal.batchNo} />
-          <Row label="AID" value={tx.card.aid} />
-        </dl>
+            <h2 className="mb-4 text-center text-xl font-extrabold uppercase">{title}</h2>
 
-        {tx.items && (
-          <>
-            <hr className="my-4 border-t border-dashed border-gray-400" />
-            <ul>
-              {tx.items.map((item, i) => (
-                <li key={i} className="flex justify-between gap-4">
-                  <span>
-                    {item.quantity} × {item.name}
-                  </span>
-                  <span className="tabular-nums">{money(item.quantity * item.unitPrice)}</span>
-                </li>
-              ))}
-            </ul>
-            {(tx.subtotal !== undefined || tx.tax !== undefined) && (
-              <dl className="mt-2">
-                {tx.subtotal !== undefined && <Row label="Subtotal" value={money(tx.subtotal)} />}
-                {tx.tax !== undefined && <Row label="Tax" value={money(tx.tax)} />}
-              </dl>
+            <dl>
+              <Row label="Date/Time" value={formatTerminalTime(tx.timestamp)} />
+              <Row label="MID" value={tx.terminal.mid} />
+              <Row label="TID" value={tx.terminal.tid} />
+              <Row label="Entry Type" value={tx.card.entryType} />
+              <Row label="Card Type" value={tx.card.cardType} />
+              <Row label="App Name" value={tx.card.appName} />
+              <div className="mt-3" />
+              <Row label="Card Number" value={tx.card.maskedPan} bold />
+              <Row label="Expiry" value={tx.card.expiry} />
+              <Row label="Trace No" value={tx.terminal.traceNo} />
+              <Row label="Approval Code" value={tx.authorization.approvalCode} />
+              <Row label="Ref No" value={tx.authorization.refNo} />
+              <Row label="Batch No" value={tx.terminal.batchNo} />
+              <Row label="AID" value={tx.card.aid} />
+            </dl>
+
+            {tx.items && (
+              <>
+                <hr className="my-4 border-t border-dashed border-gray-400" />
+                <ul>
+                  {tx.items.map((item, i) => (
+                    <li key={i} className="flex justify-between gap-4">
+                      <span>
+                        {item.quantity} × {item.name}
+                      </span>
+                      <span className="tabular-nums">{money(item.quantity * item.unitPrice)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {(tx.subtotal !== undefined || tx.tax !== undefined) && (
+                  <dl className="mt-2">
+                    {tx.subtotal !== undefined && (
+                      <Row label="Subtotal" value={money(tx.subtotal)} />
+                    )}
+                    {tx.tax !== undefined && <Row label="Tax" value={money(tx.tax)} />}
+                  </dl>
+                )}
+              </>
             )}
-          </>
-        )}
 
-        <dl className="mt-3">
-          <Row label="Total Amount" value={money(tx.total)} bold />
-        </dl>
+            <dl className="mt-3">
+              <Row label="Total Amount" value={money(tx.total)} bold />
+            </dl>
 
-        <hr className="mt-4 border-t-2 border-gray-900" />
-      </article>
+            <hr className="mt-4 border-t-2 border-gray-900" />
+
+            {tx.campaign && <Campaign campaign={tx.campaign} />}
+          </article>
+        </div>
+      </div>
     </div>
   );
 }
