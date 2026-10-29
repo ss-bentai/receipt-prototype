@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { RECEIPT_ID_PATTERN } from "@/lib/id";
-import type { Receipt } from "@/lib/schema";
+import { transactionSchema, type Receipt } from "@/lib/schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function GET(
@@ -26,10 +26,16 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Rows written under an older schema can't be rendered by the current page.
+  const parsed = transactionSchema.safeParse(data.data);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Receipt format is outdated" }, { status: 410 });
+  }
+
   const receipt: Receipt = {
     id: data.id,
     createdAt: data.created_at,
-    transaction: data.data,
+    transaction: parsed.data,
   };
   return NextResponse.json(receipt);
 }

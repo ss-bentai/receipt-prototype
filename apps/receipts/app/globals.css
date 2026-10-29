@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+/* Fasspay palette */
+@theme {
+  --color-brand-navy: #0a2a73;
+  --color-brand-blue: #1565d8;
+  --color-brand-sky: #00b4f0;
+}
+
+/* Torn-paper edge: zigzag teeth along the top and bottom of the element. */
+.torn-edges {
+  --tooth: 14px;
+  mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg)
+      top / var(--tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
+      bottom / var(--tooth) 51% repeat-x;
+}

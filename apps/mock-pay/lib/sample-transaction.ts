@@ -1,39 +1,47 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 
-const MENU = [
-  { name: "Flat White", unitPrice: 1200 },
-  { name: "Iced Latte", unitPrice: 1400 },
-  { name: "Butter Croissant", unitPrice: 900 },
-  { name: "Banana Bread", unitPrice: 800 },
-  { name: "Nasi Lemak", unitPrice: 1800 },
-];
+const MERCHANT = {
+  name: "Mock Café",
+  address: "Lot G-12, Ground Floor, Menara Contoh, No. 1 Jalan Sultan Ismail, 50250 Kuala Lumpur",
+};
 
-const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+const TERMINAL_UTC_OFFSET = "+08:00"; // Malaysia
 
-/** Builds a random transaction matching the receipts API schema. */
+/** Current time as an ISO string in the terminal's local offset. */
+function terminalTimestamp(now = new Date()) {
+  const [sign, hh, mm] = TERMINAL_UTC_OFFSET.match(/([+-])(\d{2}):(\d{2})/)!.slice(1);
+  const offsetMs = (sign === "-" ? -1 : 1) * (Number(hh) * 60 + Number(mm)) * 60_000;
+  const local = new Date(now.getTime() + offsetMs).toISOString().slice(0, 19);
+  return `${local}${TERMINAL_UTC_OFFSET}`;
+}
+
+/** Builds a sample card transaction matching the receipts API schema. */
 export function buildSampleTransaction() {
-  const count = 1 + Math.floor(Math.random() * 3);
-  const items = [...MENU]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, count)
-    .map((item) => ({ ...item, quantity: 1 + Math.floor(Math.random() * 2) }));
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-  const tax = Math.round(subtotal * 0.06);
-
   return {
     transactionId: `txn_${randomUUID()}`,
-    timestamp: new Date().toISOString(),
+    type: "purchase" as const,
+    timestamp: terminalTimestamp(),
     currency: "MYR",
-    merchant: { name: "Mock Café", address: "1 Jalan Contoh, Kuala Lumpur" },
-    items,
-    subtotal,
-    tax,
-    total: subtotal + tax,
-    payment: {
-      method: "card" as const,
-      brand: pick(["Visa", "Mastercard"]),
-      last4: String(Math.floor(Math.random() * 10000)).padStart(4, "0"),
+    total: 500 + Math.floor(Math.random() * 49_500), // MYR 5.00 – 499.99
+    merchant: MERCHANT,
+    terminal: {
+      mid: "000001234567890",
+      tid: "12345678",
+      batchNo: "000001",
+      traceNo: "000001",
+    },
+    card: {
+      entryType: "Contactless" as const,
+      cardType: "Visa",
+      appName: "Visa",
+      maskedPan: "427321******3212",
+      expiry: "**/**" as const,
+      aid: "A0000000031010",
+    },
+    authorization: {
+      approvalCode: "123456",
+      refNo: "123456789012",
     },
   };
 }

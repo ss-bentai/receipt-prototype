@@ -19,10 +19,11 @@ apps/
     lib/id.ts                       22-char base62 receipt ID generator (CSPRNG, no modulo bias)
     lib/auth.ts                     Constant-time x-api-key check
     lib/supabase.ts                 Service-role Supabase client (server-only)
+    public/merchant-logo.svg        Static placeholder merchant logo shown on every receipt
   mock-pay/                 # Fake POS terminal (port 3001)
     app/page.tsx                    Client page: Pay button, shows receipt URL as QR code
     app/api/pay/route.ts            Server route: builds a sample transaction, POSTs to receipts API
-    lib/sample-transaction.ts       Random sample transaction generator
+    lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values, random total)
 supabase/migrations/        # SQL for the `receipts` table
 ```
 
@@ -50,6 +51,17 @@ supabase/migrations/        # SQL for the `receipts` table
 - The receipts API key is also server-only; the mock-pay browser never sees it
   (it calls mock-pay's own `/api/pay` route).
 - Money is integer minor units (sen/cents); `currency` is ISO 4217.
+- The receipt mirrors a card-terminal slip: merchant header, `{type} Successful`
+  title, MID/TID, entry/card type, app name, masked card number, expiry, trace,
+  approval code, ref no, batch, AID, total. Line items (`items`, `subtotal`,
+  `tax`) are optional and mock-pay doesn't send them.
+- Card data is validated so nothing sensitive is stored: `maskedPan` must be
+  masked (first 6 + `*` + last 4) and `expiry` must be `**/**`.
+- `timestamp` carries the terminal's UTC offset; the receipt shows that
+  wall-clock time as `DD/MM/YYYY HH:mm:ss`, independent of the viewer's timezone.
+- GET returns 410 for rows stored under an older schema that no longer validates.
+- Styling: Fasspay palette tokens (`brand-navy`, `brand-blue`, `brand-sky`) in
+  `apps/receipts/app/globals.css`; `.torn-edges` gives the receipt zigzag edges.
 - `GET /api/receipts/[id]` is public: anyone with the ID can read the receipt.
   Malformed IDs return 404 without a DB query.
 - POST status codes: 401 bad/missing key, 400 invalid JSON, 422 schema failure,
@@ -84,7 +96,12 @@ Copy `.env.example` to `.env.local` in each app.
 
 - **Database: Supabase.** Apply `supabase/migrations/*.sql` via the SQL editor
   or `supabase db push`.
-- **Hosting: Vercel.** Two projects from this repo with Root Directory
-  `apps/receipts` and `apps/mock-pay`. Vercel detects pnpm from the root
-  lockfile. Set the env vars above per project.
+- **Hosting: Vercel.** Projects `receipt-prototype-receipts` and
+  `receipt-prototype-mock-pay` (Root Directory `apps/receipts` / `apps/mock-pay`).
+  Production URLs: https://receipt-prototype-receipts.vercel.app and
+  https://receipt-prototype-mock-pay.vercel.app. Deployment Protection is
+  "Standard" so production URLs are public (required: mock-pay calls receipts
+  server-to-server and customers open receipt links). Not Git-linked yet;
+  deploy from the repo root with
+  `VERCEL_ORG_ID=… VERCEL_PROJECT_ID=… npx vercel deploy --prod`.
 - **Git: GitHub** `ss-bentai/receipt-prototype`.
