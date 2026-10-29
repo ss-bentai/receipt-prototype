@@ -4,7 +4,7 @@ import { priceCart, type Cart } from "./cart";
 import { CAMPAIGNS, type PayOptions } from "./options";
 
 const MERCHANT = {
-  name: "Mock Café",
+  name: "Fass Café",
   address: "Lot G-12, Ground Floor, Menara Contoh, No. 1 Jalan Sultan Ismail, 50250 Kuala Lumpur",
 };
 

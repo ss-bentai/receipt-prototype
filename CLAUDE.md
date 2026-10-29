@@ -79,8 +79,10 @@ supabase/migrations/        # SQL for the `receipts` table
   go in `THEME_ALIASES` so stored receipts keep rendering (`feedme` -> `orange`).
 - The receipt page paints `<html>`/`<body>` and `meta[name=theme-color]` in the
   palette once loaded, so mobile browser chrome / overscroll match the theme.
-- **Campaign** (optional): `{ title, body?, cta?: { label, url } }`, shown as a
-  dashed voucher below the total. `cta.url` must be http(s).
+- **Campaign** (optional): `{ title, body?, cta?: { label, url? } }`, shown as a
+  dashed voucher below the total. `cta.url` must be http(s); without it the
+  button renders disabled (mock-pay's "Get the app" is such a placeholder).
+- The terminal's QR is not a link; "Or, click here" below it opens the receipt.
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
   the background and buttons.
 - Default styling: Fasspay palette tokens (`brand-navy`, `brand-blue`, `brand-sky`) in

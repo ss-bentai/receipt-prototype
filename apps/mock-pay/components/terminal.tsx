@@ -145,16 +145,20 @@ function ReceiptScreen({
         <CheckIcon className="h-4 w-4" /> Approved · <span className="tabular-nums">{total}</span>
       </p>
       <p className="mt-4 text-lg font-semibold">Scan for your e-receipt</p>
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-4 rounded-2xl bg-white p-3"
-        title="Open e-receipt"
-      >
+      <div className="mt-4 rounded-2xl bg-white p-3">
         <QRCodeSVG value={url} size={176} marginSize={0} />
-      </a>
-      <p className="mt-3 text-xs text-white/50">No paper receipt printed</p>
+      </div>
+      <p className="mt-3 text-sm text-white/60">
+        Or,{" "}
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-sky-300 underline underline-offset-2 hover:text-sky-200"
+        >
+          click here
+        </a>
+      </p>
       <button
         type="button"
         onClick={onNewSale}

@@ -16,7 +16,7 @@ export const CAMPAIGNS = {
     campaign: {
       title: "Download our app for more rewards",
       body: "Earn points on every purchase and unlock members-only deals.",
-      cta: { label: "Get the app", url: "https://example.com/app" },
+      cta: { label: "Get the app" }, // placeholder: no link yet, shown disabled
     },
   },
 } as const;

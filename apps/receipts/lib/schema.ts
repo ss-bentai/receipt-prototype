@@ -17,7 +17,8 @@ export const campaignSchema = z.object({
   cta: z
     .object({
       label: z.string().min(1).max(40),
-      url: z.url({ protocol: /^https?$/ }),
+      // Omit to show the button as a disabled placeholder.
+      url: z.url({ protocol: /^https?$/ }).optional(),
     })
     .optional(),
 });

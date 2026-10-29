@@ -34,20 +34,29 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
+const ctaClass =
+  "mt-3 inline-block rounded-full bg-(--accent) px-5 py-2 text-sm font-semibold text-white print:hidden";
+
 function Campaign({ campaign }: { campaign: NonNullable<Transaction["campaign"]> }) {
   return (
     <section className="mt-6 rounded-lg border-2 border-dashed border-(--accent) bg-(--accent)/5 p-4 text-center">
       <p className="text-lg font-extrabold text-(--accent)">{campaign.title}</p>
       {campaign.body && <p className="mt-1 text-sm text-gray-600">{campaign.body}</p>}
-      {campaign.cta && (
+      {campaign.cta?.url ? (
         <a
           href={campaign.cta.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-3 inline-block rounded-full bg-(--accent) px-5 py-2 text-sm font-semibold text-white hover:opacity-90 print:hidden"
+          className={`${ctaClass} hover:opacity-90`}
         >
           {campaign.cta.label}
         </a>
+      ) : (
+        campaign.cta && (
+          <button type="button" disabled className={`${ctaClass} cursor-not-allowed opacity-60`}>
+            {campaign.cta.label}
+          </button>
+        )
       )}
     </section>
   );
