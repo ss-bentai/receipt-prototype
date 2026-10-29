@@ -22,26 +22,30 @@ apps/
     lib/supabase.ts                 Service-role Supabase client (server-only)
     public/merchant-logo.svg        Static placeholder merchant logo shown on every receipt
   mock-pay/                 # Fake POS terminal (port 3001)
-    app/page.tsx                    Client page (mobile-first): campaign / line items / colour options,
-                                    Pay button, then approved screen with receipt URL as QR code
-    app/api/pay/route.ts            Server route: takes PayOptions, builds a sample transaction, POSTs to receipts API
+    app/page.tsx                    Client page: options panel + simulated terminal; drives the payment phases
+    app/api/pay/route.ts            Server route: takes PayOptions + cart, builds a sample transaction, POSTs to receipts API
+    components/terminal.tsx         Handheld terminal frame and screens (sale -> processing -> approved -> QR / error)
+    components/payment-card.tsx     Tappable Visa card ("tap card" = pay)
+    components/options-panel.tsx    Campaign / itemised purchase / receipt colour controls
+    lib/cart.ts                     Menu, random cart, priceCart (server-authoritative pricing), parseCart validation
     lib/options.ts                  Campaign presets, theme swatches, PayOptions + parser (client-safe)
-    lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values;
-                                    random total, or random items + 6% SST when itemised)
+    lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values + priced cart)
 supabase/migrations/        # SQL for the `receipts` table
 ```
 
 ## Request flow
 
-1. User picks options and clicks **Pay** in mock-pay -> browser calls
-   `POST /api/pay` with `{ campaign, itemized, theme }` (mock-pay server).
-2. mock-pay server validates the options against its allow-lists, builds a
-   sample transaction and calls
+1. mock-pay shows a random cart on the terminal screen. User picks options and
+   taps the card -> browser calls `POST /api/pay` with
+   `{ campaign, itemized, theme, cart }` (mock-pay server).
+2. mock-pay server validates the options against its allow-lists, validates the
+   cart (menu indexes/quantities or amount range; falls back to a random cart)
+   and prices it itself, builds a sample transaction and calls
    `POST {RECEIPTS_API_URL}/api/receipts` with `x-api-key: RECEIPTS_API_KEY`.
 3. receipts checks the key, validates the body with zod, generates a random
    receipt ID, inserts `{ id, transaction_id, data }` into Supabase, and returns
    `201 { id, url, createdAt }` where `url = {RECEIPTS_PUBLIC_BASE_URL}/r/{id}`.
-4. mock-pay renders `url` as a QR code.
+4. Terminal shows Processing -> Approved, then `url` as a QR code on its screen.
 5. Customer opens `/r/{id}`; the client component calls `GET /api/receipts/{id}`
    and renders the receipt.
 
@@ -71,7 +75,10 @@ supabase/migrations/        # SQL for the `receipts` table
   page background gradient and an `--accent` CSS variable used by the campaign
   block. The paper receipt itself stays black-on-white. To add a palette, add
   an entry there; the schema enum derives from it, and mirror the key in
-  `apps/mock-pay/lib/options.ts` (the two apps don't share code).
+  `apps/mock-pay/lib/options.ts` (the two apps don't share code). Renamed keys
+  go in `THEME_ALIASES` so stored receipts keep rendering (`feedme` -> `orange`).
+- The receipt page paints `<html>`/`<body>` and `meta[name=theme-color]` in the
+  palette once loaded, so mobile browser chrome / overscroll match the theme.
 - **Campaign** (optional): `{ title, body?, cta?: { label, url } }`, shown as a
   dashed voucher below the total. `cta.url` must be http(s).
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops

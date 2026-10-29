@@ -1,22 +1,12 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { priceCart, type Cart } from "./cart";
 import { CAMPAIGNS, type PayOptions } from "./options";
 
 const MERCHANT = {
   name: "Mock Café",
   address: "Lot G-12, Ground Floor, Menara Contoh, No. 1 Jalan Sultan Ismail, 50250 Kuala Lumpur",
 };
-
-const MENU = [
-  { name: "Flat White", unitPrice: 1200 },
-  { name: "Iced Latte", unitPrice: 1400 },
-  { name: "Butter Croissant", unitPrice: 900 },
-  { name: "Banana Bread", unitPrice: 800 },
-  { name: "Nasi Lemak", unitPrice: 1800 },
-  { name: "Teh Tarik", unitPrice: 500 },
-];
-
-const SST_RATE = 0.06;
 
 const TERMINAL_UTC_OFFSET = "+08:00"; // Malaysia
 
@@ -28,23 +18,9 @@ function terminalTimestamp(now = new Date()) {
   return `${local}${TERMINAL_UTC_OFFSET}`;
 }
 
-/** 1–4 distinct menu items with subtotal, SST and total. */
-function sampleItemization() {
-  const count = 1 + Math.floor(Math.random() * 4);
-  const items = [...MENU]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, count)
-    .map((item) => ({ ...item, quantity: 1 + Math.floor(Math.random() * 2) }));
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-  const tax = Math.round(subtotal * SST_RATE);
-  return { items, subtotal, tax, total: subtotal + tax };
-}
-
 /** Builds a sample card transaction matching the receipts API schema. */
-export function buildSampleTransaction(options: PayOptions) {
-  const amounts = options.itemized
-    ? sampleItemization()
-    : { total: 500 + Math.floor(Math.random() * 49_500) }; // MYR 5.00 – 499.99
+export function buildSampleTransaction(options: PayOptions, cart: Cart) {
+  const amounts = priceCart(cart);
 
   return {
     transactionId: `txn_${randomUUID()}`,

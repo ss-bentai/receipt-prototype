@@ -26,7 +26,7 @@ export type CampaignKey = keyof typeof CAMPAIGNS;
 // Keys must match apps/receipts/lib/themes.ts; colours are only for the swatches here.
 export const THEMES = {
   fasspay: { label: "Fasspay Blue", from: "#1565d8", to: "#0a2a73" },
-  feedme: { label: "FeedMe Orange", from: "#f97316", to: "#9a3412" },
+  orange: { label: "Orange", from: "#f97316", to: "#9a3412" },
   emerald: { label: "Emerald", from: "#059669", to: "#064e3b" },
   berry: { label: "Berry", from: "#9333ea", to: "#4c1d95" },
   midnight: { label: "Midnight", from: "#374151", to: "#030712" },

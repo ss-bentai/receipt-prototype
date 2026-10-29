@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_THEME, THEME_KEYS } from "./themes";
+import { DEFAULT_THEME, THEME_ALIASES, THEME_KEYS } from "./themes";
 
 const money = z.number().int().nonnegative(); // minor units, e.g. cents
 const digits = (min: number, max: number) =>
@@ -65,7 +65,10 @@ export const transactionSchema = z.object({
     approvalCode: z.string().regex(/^[0-9A-Z]{6}$/i),
     refNo: digits(12, 12),
   }),
-  theme: z.enum(THEME_KEYS).default(DEFAULT_THEME),
+  theme: z.preprocess(
+    (v) => (typeof v === "string" && THEME_ALIASES[v]) || v,
+    z.enum(THEME_KEYS).default(DEFAULT_THEME),
+  ),
   campaign: campaignSchema.optional(),
   // Optional itemisation.
   items: z.array(lineItemSchema).min(1).max(100).optional(),

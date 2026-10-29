@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TRANSACTION_TYPES, type Receipt, type Transaction } from "@/lib/schema";
-import { DEFAULT_THEME, THEMES, themeBackground } from "@/lib/themes";
+import { DEFAULT_THEME, THEMES, themeBackground, type ThemeKey } from "@/lib/themes";
 
 type State =
   | { status: "loading" }
@@ -53,6 +53,32 @@ function Campaign({ campaign }: { campaign: NonNullable<Transaction["campaign"]>
   );
 }
 
+const resolveTheme = (key: string): ThemeKey => (key in THEMES ? (key as ThemeKey) : DEFAULT_THEME);
+
+/**
+ * Paints the whole document in the receipt's palette, so the browser chrome
+ * (iOS status-bar area, overscroll) matches instead of showing the default.
+ */
+function useDocumentTheme(theme: ThemeKey | undefined) {
+  useEffect(() => {
+    if (!theme) return;
+    const t = THEMES[theme];
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.backgroundColor = t.from;
+    body.style.background = themeBackground(theme);
+    body.style.backgroundAttachment = "fixed";
+
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content = t.from;
+  }, [theme]);
+}
+
 function Message({ children }: { children: React.ReactNode }) {
   return <p className="px-4 py-16 text-center text-white/80">{children}</p>;
 }
@@ -75,6 +101,10 @@ export default function ReceiptView({ id }: { id: string }) {
     return () => controller.abort();
   }, [id]);
 
+  useDocumentTheme(
+    state.status === "ready" ? resolveTheme(state.receipt.transaction.theme) : undefined,
+  );
+
   if (state.status === "loading") return <Message>Loading receipt…</Message>;
   if (state.status === "not-found") return <Message>Receipt not found.</Message>;
   if (state.status === "outdated") {
@@ -85,15 +115,14 @@ export default function ReceiptView({ id }: { id: string }) {
   const { transaction: tx } = state.receipt;
   const money = (minor: number) => formatMoney(minor, tx.currency);
   const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
-  const theme = THEMES[tx.theme] ? tx.theme : DEFAULT_THEME;
+  const theme = resolveTheme(tx.theme);
 
   return (
     <div
-      className="min-h-dvh px-4 py-10 sm:py-16 print:bg-none! print:p-0"
+      className="min-h-dvh px-4 py-10 sm:py-16 print:p-0"
       style={
         {
           "--accent": THEMES[theme].accent,
-          background: themeBackground(theme),
         } as React.CSSProperties
       }
     >

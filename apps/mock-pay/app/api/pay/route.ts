@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseCart, randomCart } from "@/lib/cart";
 import { parsePayOptions } from "@/lib/options";
 import { buildSampleTransaction } from "@/lib/sample-transaction";
 
@@ -12,8 +13,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const options = parsePayOptions(await request.json().catch(() => null));
-  const transaction = buildSampleTransaction(options);
+  const body = await request.json().catch(() => null);
+  const options = parsePayOptions(body);
+  const transaction = buildSampleTransaction(
+    options,
+    parseCart(body?.cart) ?? randomCart(options.itemized),
+  );
 
   let res: Response;
   try {
@@ -28,17 +33,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Receipts API unreachable" }, { status: 502 });
   }
 
-  const body = await res.json().catch(() => null);
-  if (!res.ok || typeof body?.url !== "string") {
-    console.error("Receipts API error", res.status, body);
+  const created = await res.json().catch(() => null);
+  if (!res.ok || typeof created?.url !== "string") {
+    console.error("Receipts API error", res.status, created);
     return NextResponse.json(
-      { error: body?.error ?? `Receipts API returned ${res.status}` },
+      { error: created?.error ?? `Receipts API returned ${res.status}` },
       { status: 502 },
     );
   }
 
   return NextResponse.json({
-    url: body.url as string,
+    url: created.url as string,
     transactionId: transaction.transactionId,
     total: transaction.total,
     currency: transaction.currency,

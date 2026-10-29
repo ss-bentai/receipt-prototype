@@ -18,7 +18,8 @@
 }
 
 @media print {
+  html,
   body {
-    background: none;
+    background: none !important;
   }
 }
