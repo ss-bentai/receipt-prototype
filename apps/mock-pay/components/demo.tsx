@@ -8,8 +8,9 @@ import { cartForOrder, priceCart, randomOrder, type OrderLines } from "@/lib/car
 import { CAMPAIGN_KEYS, DEFAULT_OPTIONS, PROVIDERS, type PayOptions } from "@/lib/options";
 
 const CURRENCY = "MYR";
-const TAP_MS = 700;
-const MIN_PROCESSING_MS = 1200;
+// Tap -> Approved takes ~1.5 s (longer only if the receipts API is slower).
+const TAP_MS = 400;
+const MIN_PROCESSING_MS = 1100;
 const APPROVED_MS = 1400;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

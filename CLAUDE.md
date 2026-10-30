@@ -48,7 +48,9 @@ supabase/migrations/        # SQL for the `receipts` table
 3. receipts checks the key, validates the body with zod, generates a random
    receipt ID, inserts `{ id, transaction_id, data }` into Supabase, and returns
    `201 { id, url, createdAt }` where `url = {RECEIPTS_PUBLIC_BASE_URL}/r/{id}`.
-4. Terminal shows Processing -> Approved, then `url` as a QR code on its screen.
+4. Terminal shows Processing -> Approved (tap to Approved ~1.5 s: `TAP_MS` +
+   `MIN_PROCESSING_MS` in `components/demo.tsx`, longer only if the API is
+   slower), then `url` as a QR code on its screen.
 5. Customer opens `/r/{id}`; the client component calls `GET /api/receipts/{id}`
    and renders the receipt.
 
@@ -91,17 +93,18 @@ supabase/migrations/        # SQL for the `receipts` table
   (fictional "Contoh Bank"); built server-side at payment time.
 - The terminal's QR is not a link; "Or, click here" below it opens the receipt.
 - **Printing animation:** while loading, the receipt page shows an upside-down
-  terminal printer (`Printer`) on a neutral background (provider colours apply
-  only once the receipt is known). Once loaded, the whole paper slides down out
+  terminal printer (`Printer`) on a neutral greyish-white background (provider
+  colours apply only once the receipt is known). Printer LED: amber pulse while
+  loading, green blink while printing, steady green when done. Once loaded, the whole paper slides down out
   of the slot (Web Animations `translateY`, clipped at the slot), so the
   bottom edge leads and the header comes out last, like a real printer. It
-  pauses ~600 ms once the campaign (`data-print-pause`) is fully out so it
+  pauses ~300 ms once the campaign (`data-print-pause`) is fully out so it
   stays on screen longer. Skipped for `prefers-reduced-motion`.
 - mock-pay's terminal screen uses the selected provider's colours
   (`PROVIDERS[key].screen` in mock-pay's options); the device frame doesn't change.
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
   the background and buttons.
-- Default (pre-load / non-receipt pages) background is a neutral slate
+- Default (pre-load / non-receipt pages) background is a neutral greyish-white
   gradient in `apps/receipts/app/layout.tsx`; `.torn-edges` in `globals.css`
   gives the receipt zigzag edges.
 - `GET /api/receipts/[id]` is public: anyone with the ID can read the receipt.

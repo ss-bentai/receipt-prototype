@@ -90,11 +90,13 @@ function useDocumentTheme(provider: ProviderKey | undefined) {
 }
 
 function Message({ children }: { children: React.ReactNode }) {
-  return <p className="px-4 py-16 text-center text-white/80">{children}</p>;
+  return <p className="px-4 py-16 text-center text-slate-600">{children}</p>;
 }
 
 /** The top of a card terminal, upside down: the receipt feeds out of its slot. */
-function Printer({ active }: { active: boolean }) {
+type PrinterStatus = "waiting" | "printing" | "done";
+
+function Printer({ status }: { status: PrinterStatus }) {
   return (
     <div
       aria-hidden
@@ -102,7 +104,11 @@ function Printer({ active }: { active: boolean }) {
     >
       <span
         className={`absolute top-3 right-6 h-1.5 w-1.5 rounded-full ${
-          active ? "animate-pulse bg-amber-400" : "bg-emerald-400"
+          {
+            waiting: "animate-pulse bg-amber-400",
+            printing: "animate-[blink_0.35s_steps(2,jump-none)_infinite] bg-emerald-400",
+            done: "bg-emerald-400",
+          }[status]
         } shadow-[0_0_6px_currentColor]`}
       />
       {/* Paper slot */}
@@ -113,7 +119,7 @@ function Printer({ active }: { active: boolean }) {
 
 const FEED_PX_PER_MS = 0.55;
 const START_DELAY_MS = 350;
-const CAMPAIGN_PAUSE_MS = 600;
+const CAMPAIGN_PAUSE_MS = 300;
 const CAMPAIGN_MARGIN_PX = 16; // pause with a little paper showing above the campaign
 
 /**
@@ -149,10 +155,16 @@ function feedKeyframes(height: number, pauseAt?: number) {
 }
 
 /** Plays the feed animation once on mount (skipped for reduced motion). */
-function usePrintAnimation(paperRef: React.RefObject<HTMLDivElement | null>) {
+function usePrintAnimation(paperRef: React.RefObject<HTMLDivElement | null>, onDone: () => void) {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
   useLayoutEffect(() => {
     const paper = paperRef.current;
-    if (!paper || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!paper || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      onDoneRef.current();
+      return;
+    }
     const height = paper.offsetHeight;
     const campaign = paper.querySelector<HTMLElement>("[data-print-pause]");
     const { keyframes, duration } = feedKeyframes(
@@ -160,13 +172,17 @@ function usePrintAnimation(paperRef: React.RefObject<HTMLDivElement | null>) {
       campaign ? height - campaign.offsetTop + CAMPAIGN_MARGIN_PX : undefined,
     );
     const animation = paper.animate(keyframes, { duration, easing: "linear", fill: "backwards" });
+    animation.finished.then(
+      () => onDoneRef.current(),
+      () => {},
+    ); // rejects if cancelled
     return () => animation.cancel();
   }, [paperRef]);
 }
 
-function PrintedReceipt({ tx }: { tx: Transaction }) {
+function PrintedReceipt({ tx, onPrinted }: { tx: Transaction; onPrinted: () => void }) {
   const paperRef = useRef<HTMLDivElement>(null);
-  usePrintAnimation(paperRef);
+  usePrintAnimation(paperRef, onPrinted);
 
   const money = (minor: number) => formatMoney(minor, tx.currency);
   const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
@@ -251,6 +267,7 @@ function PrintedReceipt({ tx }: { tx: Transaction }) {
 
 export default function ReceiptView({ id }: { id: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [printed, setPrinted] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -298,11 +315,11 @@ export default function ReceiptView({ id }: { id: string }) {
           </button>
         </div>
 
-        <Printer active={!tx} />
+        <Printer status={!tx ? "waiting" : printed ? "done" : "printing"} />
         <p className="sr-only" aria-live="polite">
           {tx ? "Receipt loaded" : "Loading receipt"}
         </p>
-        {tx && <PrintedReceipt tx={tx} />}
+        {tx && <PrintedReceipt tx={tx} onPrinted={() => setPrinted(true)} />}
       </div>
     </div>
   );
