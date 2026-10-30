@@ -22,19 +22,24 @@ export type Cart =
   | { kind: "itemized"; lines: { menuIndex: number; quantity: number }[] }
   | { kind: "amount"; amount: number };
 
-export function randomCart(itemized: boolean): Cart {
-  if (!itemized) {
-    return {
-      kind: "amount",
-      amount: MIN_AMOUNT + Math.floor(Math.random() * (MAX_AMOUNT - MIN_AMOUNT + 1)),
-    };
-  }
+export type OrderLines = Extract<Cart, { kind: "itemized" }>["lines"];
+
+/** A random order for one sale: 1–4 distinct menu items. */
+export function randomOrder(): OrderLines {
   const count = 1 + Math.floor(Math.random() * 4);
-  const lines = MENU.map((_, menuIndex) => menuIndex)
+  return MENU.map((_, menuIndex) => menuIndex)
     .sort(() => Math.random() - 0.5)
     .slice(0, count)
     .map((menuIndex) => ({ menuIndex, quantity: 1 + Math.floor(Math.random() * 2) }));
-  return { kind: "itemized", lines };
+}
+
+/**
+ * The cart sent for an order. The total is the same either way; itemised just
+ * includes the lines, subtotal and tax.
+ */
+export function cartForOrder(lines: OrderLines, itemized: boolean): Cart {
+  const itemizedCart: Cart = { kind: "itemized", lines };
+  return itemized ? itemizedCart : { kind: "amount", amount: priceCart(itemizedCart).total };
 }
 
 export type PricedCart = {

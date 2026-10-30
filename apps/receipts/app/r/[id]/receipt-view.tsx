@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TRANSACTION_TYPES, type Receipt, type Transaction } from "@/lib/schema";
-import { DEFAULT_THEME, THEMES, themeBackground, type ThemeKey } from "@/lib/themes";
+import { DEFAULT_PROVIDER, PROVIDERS, providerBackground, type ProviderKey } from "@/lib/providers";
 
 type State =
   | { status: "loading" }
@@ -62,20 +62,21 @@ function Campaign({ campaign }: { campaign: NonNullable<Transaction["campaign"]>
   );
 }
 
-const resolveTheme = (key: string): ThemeKey => (key in THEMES ? (key as ThemeKey) : DEFAULT_THEME);
+const resolveProvider = (key: string): ProviderKey =>
+  key in PROVIDERS ? (key as ProviderKey) : DEFAULT_PROVIDER;
 
 /**
  * Paints the whole document in the receipt's palette, so the browser chrome
  * (iOS status-bar area, overscroll) matches instead of showing the default.
  */
-function useDocumentTheme(theme: ThemeKey | undefined) {
+function useDocumentTheme(provider: ProviderKey | undefined) {
   useEffect(() => {
-    if (!theme) return;
-    const t = THEMES[theme];
+    if (!provider) return;
+    const t = PROVIDERS[provider];
     const html = document.documentElement;
     const body = document.body;
     html.style.backgroundColor = t.from;
-    body.style.background = themeBackground(theme);
+    body.style.background = providerBackground(provider);
     body.style.backgroundAttachment = "fixed";
 
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -85,7 +86,7 @@ function useDocumentTheme(theme: ThemeKey | undefined) {
       document.head.appendChild(meta);
     }
     meta.content = t.from;
-  }, [theme]);
+  }, [provider]);
 }
 
 function Message({ children }: { children: React.ReactNode }) {
@@ -111,7 +112,7 @@ export default function ReceiptView({ id }: { id: string }) {
   }, [id]);
 
   useDocumentTheme(
-    state.status === "ready" ? resolveTheme(state.receipt.transaction.theme) : undefined,
+    state.status === "ready" ? resolveProvider(state.receipt.transaction.provider) : undefined,
   );
 
   if (state.status === "loading") return <Message>Loading receipt…</Message>;
@@ -124,14 +125,14 @@ export default function ReceiptView({ id }: { id: string }) {
   const { transaction: tx } = state.receipt;
   const money = (minor: number) => formatMoney(minor, tx.currency);
   const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
-  const theme = resolveTheme(tx.theme);
+  const provider = PROVIDERS[resolveProvider(tx.provider)];
 
   return (
     <div
       className="min-h-dvh px-4 py-10 sm:py-16 print:p-0"
       style={
         {
-          "--accent": THEMES[theme].accent,
+          "--accent": provider.accent,
         } as React.CSSProperties
       }
     >
@@ -149,7 +150,13 @@ export default function ReceiptView({ id }: { id: string }) {
         <div className="drop-shadow-2xl print:drop-shadow-none">
           <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900 sm:px-10 lg:text-base">
             <header className="text-center">
-              <img src="/merchant-logo.svg" alt="" className="mx-auto h-16 w-16" />
+              <img
+                src={provider.logo.src}
+                width={provider.logo.width}
+                height={provider.logo.height}
+                alt={provider.label}
+                className="mx-auto h-16 w-auto max-w-[200px] object-contain"
+              />
               <h1 className="mt-3 text-lg font-bold uppercase">{tx.merchant.name}</h1>
               {tx.merchant.address && <p className="mt-1 uppercase">{tx.merchant.address}</p>}
             </header>

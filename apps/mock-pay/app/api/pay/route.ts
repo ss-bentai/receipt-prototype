@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseCart, randomCart } from "@/lib/cart";
+import { cartForOrder, parseCart, randomOrder } from "@/lib/cart";
 import { parsePayOptions } from "@/lib/options";
 import { buildSampleTransaction } from "@/lib/sample-transaction";
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const options = parsePayOptions(body);
   const transaction = buildSampleTransaction(
     options,
-    parseCart(body?.cart) ?? randomCart(options.itemized),
+    parseCart(body?.cart) ?? cartForOrder(randomOrder(), options.itemized),
   );
 
   let res: Response;

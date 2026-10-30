@@ -20,12 +20,13 @@ function terminalTimestamp(now = new Date()) {
 
 /** Builds a sample card transaction matching the receipts API schema. */
 export function buildSampleTransaction(options: PayOptions, cart: Cart) {
+  const now = new Date();
   const amounts = priceCart(cart);
 
   return {
     transactionId: `txn_${randomUUID()}`,
     type: "purchase" as const,
-    timestamp: terminalTimestamp(),
+    timestamp: terminalTimestamp(now),
     currency: "MYR",
     ...amounts,
     merchant: MERCHANT,
@@ -47,7 +48,7 @@ export function buildSampleTransaction(options: PayOptions, cart: Cart) {
       approvalCode: "123456",
       refNo: "123456789012",
     },
-    theme: options.theme,
-    campaign: CAMPAIGNS[options.campaign].campaign,
+    provider: options.provider,
+    campaign: options.campaign ? CAMPAIGNS[options.campaign].build(now) : undefined,
   };
 }

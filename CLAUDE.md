@@ -16,28 +16,30 @@ apps/
     app/r/[id]/page.tsx             Receipt page shell (server component)
     app/r/[id]/receipt-view.tsx     Client component: fetches the GET API and renders
     lib/schema.ts                   zod schema for the transaction payload + Receipt type
-    lib/themes.ts                   Named colour palettes (theme key -> colours)
+    lib/providers.ts                Payment providers (key -> label, logo, colour scheme)
     lib/id.ts                       22-char base62 receipt ID generator (CSPRNG, no modulo bias)
     lib/auth.ts                     Constant-time x-api-key check
     lib/supabase.ts                 Service-role Supabase client (server-only)
-    public/merchant-logo.svg        Static placeholder merchant logo shown on every receipt
-  mock-pay/                 # Fake POS terminal (port 3001)
-    app/page.tsx                    Client page: options panel + simulated terminal; drives the payment phases
+    public/providers/{key}.png      Provider logos (shown on the receipt; also used by mock-pay's picker)
+  mock-pay/                 # "Receipt Demo": fake POS terminal (port 3001)
+    app/page.tsx                    Server shell: passes RECEIPTS_API_URL (for provider logos) to Demo
+    components/demo.tsx             Client: options panel + simulated terminal; drives the payment phases
     app/api/pay/route.ts            Server route: takes PayOptions + cart, builds a sample transaction, POSTs to receipts API
     components/terminal.tsx         Handheld terminal frame and screens (sale -> processing -> approved -> QR / error)
     components/payment-card.tsx     Tappable Visa card ("tap card" = pay)
-    components/options-panel.tsx    Campaign / itemised purchase / receipt colour controls
-    lib/cart.ts                     Menu, random cart, priceCart (server-authoritative pricing), parseCart validation
-    lib/options.ts                  Campaign presets, theme swatches, PayOptions + parser (client-safe)
+    components/options-panel.tsx    Provider picker, campaign switch + type dropdown, itemised purchase switch
+    lib/cart.ts                     Menu, random order, cartForOrder, priceCart (server-authoritative), parseCart
+    lib/options.ts                  Campaign types (+ builders), provider keys, PayOptions + parser (client-safe)
     lib/sample-transaction.ts       Sample card transaction (fixed merchant/terminal/card values + priced cart)
 supabase/migrations/        # SQL for the `receipts` table
 ```
 
 ## Request flow
 
-1. mock-pay shows a random cart on the terminal screen. User picks options and
-   taps the card -> browser calls `POST /api/pay` with
-   `{ campaign, itemized, theme, cart }` (mock-pay server).
+1. mock-pay creates one random order per sale and shows it on the terminal
+   screen; the itemised switch only changes whether the lines are sent (the
+   total is identical). User picks options and taps the card -> browser calls
+   `POST /api/pay` with `{ provider, campaign, itemized, cart }` (mock-pay server).
 2. mock-pay server validates the options against its allow-lists, validates the
    cart (menu indexes/quantities or amount range; falls back to a random cart)
    and prices it itself, builds a sample transaction and calls
@@ -70,18 +72,22 @@ supabase/migrations/        # SQL for the `receipts` table
 - `timestamp` carries the terminal's UTC offset; the receipt shows that
   wall-clock time as `DD/MM/YYYY HH:mm:ss`, independent of the viewer's timezone.
 - GET returns 410 for rows stored under an older schema that no longer validates.
-- **Themes are named palettes, not raw colours.** `theme` is one of the keys
-  in `apps/receipts/lib/themes.ts` (default `fasspay`). Each palette sets the
-  page background gradient and an `--accent` CSS variable used by the campaign
-  block. The paper receipt itself stays black-on-white. To add a palette, add
-  an entry there; the schema enum derives from it, and mirror the key in
-  `apps/mock-pay/lib/options.ts` (the two apps don't share code). Renamed keys
-  go in `THEME_ALIASES` so stored receipts keep rendering (`feedme` -> `orange`).
+- **Providers, not raw colours.** `provider` is a key in
+  `apps/receipts/lib/providers.ts` (`fasspay` default, `aeon`). The receipts app
+  owns each provider's logo and colour scheme: the logo heads the receipt, the
+  palette sets the page background and the `--accent` CSS variable used by the
+  campaign block. Callers send only the key. To add one, add an entry plus
+  `public/providers/{key}.png`, and mirror the key in
+  `apps/mock-pay/lib/options.ts`. Old receipts with a `theme` field render with
+  the default provider.
 - The receipt page paints `<html>`/`<body>` and `meta[name=theme-color]` in the
-  palette once loaded, so mobile browser chrome / overscroll match the theme.
+  provider palette once loaded, so mobile browser chrome / overscroll match the theme.
 - **Campaign** (optional): `{ title, body?, cta?: { label, url? } }`, shown as a
   dashed voucher below the total. `cta.url` must be http(s); without it the
-  button renders disabled (mock-pay's "Get the app" is such a placeholder).
+  button renders disabled (mock-pay's "Get the app" / "Apply now" are
+  placeholders). mock-pay campaign types: RM5 off next visit, download our app,
+  upcoming store sale (date = payment date + 14 days), credit card sign-up
+  (fictional "Contoh Bank"); built server-side at payment time.
 - The terminal's QR is not a link; "Or, click here" below it opens the receipt.
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
   the background and buttons.
