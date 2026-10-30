@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TRANSACTION_TYPES, type Receipt, type Transaction } from "@/lib/schema";
 import { DEFAULT_PROVIDER, PROVIDERS, providerBackground, type ProviderKey } from "@/lib/providers";
 
@@ -93,6 +93,157 @@ function Message({ children }: { children: React.ReactNode }) {
   return <p className="px-4 py-16 text-center text-white/80">{children}</p>;
 }
 
+/** The top of a card terminal, upside down: the receipt feeds out of its slot. */
+function Printer({ active }: { active: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className="relative z-10 -mx-3 h-14 rounded-t-lg rounded-b-[1.75rem] bg-[linear-gradient(0deg,#3a3d44_0%,#1c1d21_55%,#111214_100%)] shadow-[0_16px_28px_-14px_rgba(0,0,0,0.7)] ring-1 ring-black/50 print:hidden"
+    >
+      <span
+        className={`absolute top-3 right-6 h-1.5 w-1.5 rounded-full ${
+          active ? "animate-pulse bg-amber-400" : "bg-emerald-400"
+        } shadow-[0_0_6px_currentColor]`}
+      />
+      {/* Paper slot */}
+      <span className="absolute inset-x-2 bottom-0 h-2 rounded-t-sm bg-black shadow-[inset_0_2px_3px_rgba(0,0,0,0.9)]" />
+    </div>
+  );
+}
+
+const FEED_PX_PER_MS = 0.55;
+const START_DELAY_MS = 350;
+const HOLD_MS = 380;
+
+/**
+ * Keyframes that print the receipt top-down out of the slot: the paper is
+ * revealed line by line (clip-path), pausing with a small shudder at each
+ * section break like a thermal printer catching up. `pos` is how much paper
+ * is out.
+ */
+function feedKeyframes(height: number, breaks: number[]) {
+  const points: { t: number; pos: number; x?: number; y?: number }[] = [{ t: 0, pos: 0 }];
+  let t = START_DELAY_MS;
+  let pos = 0;
+  points.push({ t, pos });
+  for (const stop of [...breaks.filter((b) => b > 0 && b < height), height]) {
+    t += (stop - pos) / FEED_PX_PER_MS;
+    pos = stop;
+    points.push({ t, pos });
+    if (stop < height) {
+      points.push({ t: t + HOLD_MS * 0.15, pos, x: 0.8, y: 1.5 });
+      points.push({ t: t + HOLD_MS * 0.3, pos, x: -0.8, y: -0.5 });
+      points.push({ t: t + HOLD_MS * 0.45, pos, x: 0.4, y: 0.8 });
+      t += HOLD_MS;
+      points.push({ t, pos });
+    }
+  }
+  return {
+    duration: t,
+    keyframes: points.map((p) => ({
+      offset: p.t / t,
+      // Negative side insets keep the drop shadow visible.
+      clipPath: `inset(0 -40px ${height - p.pos}px -40px)`,
+      transform: `translate(${p.x ?? 0}px, ${p.y ?? 0}px)`,
+    })),
+  };
+}
+
+/** Plays the feed animation once on mount (skipped for reduced motion). */
+function usePrintAnimation(paperRef: React.RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const paper = paperRef.current;
+    if (!paper || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const height = paper.offsetHeight;
+    const breaks = [...paper.querySelectorAll<HTMLElement>("[data-print-break]")].map(
+      (el) => el.offsetTop + el.offsetHeight,
+    );
+    const { keyframes, duration } = feedKeyframes(height, breaks);
+    const animation = paper.animate(keyframes, { duration, easing: "linear", fill: "backwards" });
+    return () => animation.cancel();
+  }, [paperRef]);
+}
+
+function PrintedReceipt({ tx }: { tx: Transaction }) {
+  const paperRef = useRef<HTMLDivElement>(null);
+  usePrintAnimation(paperRef);
+
+  const money = (minor: number) => formatMoney(minor, tx.currency);
+  const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
+  const provider = PROVIDERS[resolveProvider(tx.provider)];
+
+  return (
+    <div className="pb-12 print:p-0">
+      <div ref={paperRef} className="relative drop-shadow-2xl print:drop-shadow-none">
+        <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900 sm:px-10 lg:text-base">
+          <header data-print-break className="text-center">
+            <img
+              src={provider.logo.src}
+              width={provider.logo.width}
+              height={provider.logo.height}
+              alt={provider.label}
+              className="mx-auto h-16 w-auto max-w-[200px] object-contain"
+            />
+            <h1 className="mt-3 text-lg font-bold uppercase">{tx.merchant.name}</h1>
+            {tx.merchant.address && <p className="mt-1 uppercase">{tx.merchant.address}</p>}
+          </header>
+
+          <hr className="my-4 border-t-2 border-gray-900" />
+
+          <h2 className="mb-4 text-center text-xl font-extrabold uppercase">{title}</h2>
+
+          <dl data-print-break>
+            <Row label="Date/Time" value={formatTerminalTime(tx.timestamp)} />
+            <Row label="MID" value={tx.terminal.mid} />
+            <Row label="TID" value={tx.terminal.tid} />
+            <Row label="Entry Type" value={tx.card.entryType} />
+            <Row label="Card Type" value={tx.card.cardType} />
+            <Row label="App Name" value={tx.card.appName} />
+            <div className="mt-3" />
+            <Row label="Card Number" value={tx.card.maskedPan} bold />
+            <Row label="Expiry" value={tx.card.expiry} />
+            <Row label="Trace No" value={tx.terminal.traceNo} />
+            <Row label="Approval Code" value={tx.authorization.approvalCode} />
+            <Row label="Ref No" value={tx.authorization.refNo} />
+            <Row label="Batch No" value={tx.terminal.batchNo} />
+            <Row label="AID" value={tx.card.aid} />
+          </dl>
+
+          {tx.items && (
+            <div data-print-break>
+              <hr className="my-4 border-t border-dashed border-gray-400" />
+              <ul>
+                {tx.items.map((item, i) => (
+                  <li key={i} className="flex justify-between gap-4">
+                    <span>
+                      {item.quantity} × {item.name}
+                    </span>
+                    <span className="tabular-nums">{money(item.quantity * item.unitPrice)}</span>
+                  </li>
+                ))}
+              </ul>
+              {(tx.subtotal !== undefined || tx.tax !== undefined) && (
+                <dl className="mt-2">
+                  {tx.subtotal !== undefined && <Row label="Subtotal" value={money(tx.subtotal)} />}
+                  {tx.tax !== undefined && <Row label="Tax" value={money(tx.tax)} />}
+                </dl>
+              )}
+            </div>
+          )}
+
+          <dl className="mt-3">
+            <Row label="Total Amount" value={money(tx.total)} bold />
+          </dl>
+
+          <hr data-print-break className="mt-4 border-t-2 border-gray-900" />
+
+          {tx.campaign && <Campaign campaign={tx.campaign} />}
+        </article>
+      </div>
+    </div>
+  );
+}
+
 export default function ReceiptView({ id }: { id: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
 
@@ -115,29 +266,24 @@ export default function ReceiptView({ id }: { id: string }) {
     state.status === "ready" ? resolveProvider(state.receipt.transaction.provider) : undefined,
   );
 
-  if (state.status === "loading") return <Message>Loading receipt…</Message>;
   if (state.status === "not-found") return <Message>Receipt not found.</Message>;
   if (state.status === "outdated") {
     return <Message>This receipt was created in an older format and can&apos;t be shown.</Message>;
   }
   if (state.status === "error") return <Message>Couldn&apos;t load this receipt.</Message>;
 
-  const { transaction: tx } = state.receipt;
-  const money = (minor: number) => formatMoney(minor, tx.currency);
-  const title = `${TRANSACTION_TYPES[tx.type] ?? "Purchase"} Successful`;
-  const provider = PROVIDERS[resolveProvider(tx.provider)];
+  const tx = state.status === "ready" ? state.receipt.transaction : undefined;
+  const provider = tx && PROVIDERS[resolveProvider(tx.provider)];
 
   return (
     <div
       className="min-h-dvh px-4 py-10 sm:py-16 print:p-0"
-      style={
-        {
-          "--accent": provider.accent,
-        } as React.CSSProperties
-      }
+      style={provider && ({ "--accent": provider.accent } as React.CSSProperties)}
     >
       <div className="mx-auto w-full max-w-md lg:max-w-lg">
-        <div className="mb-6 hidden items-center justify-between sm:flex print:hidden">
+        <div
+          className={`mb-6 hidden items-center justify-between sm:flex print:hidden ${tx ? "" : "invisible"}`}
+        >
           <p className="text-sm font-medium tracking-wide text-white/80 uppercase">e-Receipt</p>
           <button
             onClick={() => window.print()}
@@ -147,74 +293,11 @@ export default function ReceiptView({ id }: { id: string }) {
           </button>
         </div>
 
-        <div className="drop-shadow-2xl print:drop-shadow-none">
-          <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900 sm:px-10 lg:text-base">
-            <header className="text-center">
-              <img
-                src={provider.logo.src}
-                width={provider.logo.width}
-                height={provider.logo.height}
-                alt={provider.label}
-                className="mx-auto h-16 w-auto max-w-[200px] object-contain"
-              />
-              <h1 className="mt-3 text-lg font-bold uppercase">{tx.merchant.name}</h1>
-              {tx.merchant.address && <p className="mt-1 uppercase">{tx.merchant.address}</p>}
-            </header>
-
-            <hr className="my-4 border-t-2 border-gray-900" />
-
-            <h2 className="mb-4 text-center text-xl font-extrabold uppercase">{title}</h2>
-
-            <dl>
-              <Row label="Date/Time" value={formatTerminalTime(tx.timestamp)} />
-              <Row label="MID" value={tx.terminal.mid} />
-              <Row label="TID" value={tx.terminal.tid} />
-              <Row label="Entry Type" value={tx.card.entryType} />
-              <Row label="Card Type" value={tx.card.cardType} />
-              <Row label="App Name" value={tx.card.appName} />
-              <div className="mt-3" />
-              <Row label="Card Number" value={tx.card.maskedPan} bold />
-              <Row label="Expiry" value={tx.card.expiry} />
-              <Row label="Trace No" value={tx.terminal.traceNo} />
-              <Row label="Approval Code" value={tx.authorization.approvalCode} />
-              <Row label="Ref No" value={tx.authorization.refNo} />
-              <Row label="Batch No" value={tx.terminal.batchNo} />
-              <Row label="AID" value={tx.card.aid} />
-            </dl>
-
-            {tx.items && (
-              <>
-                <hr className="my-4 border-t border-dashed border-gray-400" />
-                <ul>
-                  {tx.items.map((item, i) => (
-                    <li key={i} className="flex justify-between gap-4">
-                      <span>
-                        {item.quantity} × {item.name}
-                      </span>
-                      <span className="tabular-nums">{money(item.quantity * item.unitPrice)}</span>
-                    </li>
-                  ))}
-                </ul>
-                {(tx.subtotal !== undefined || tx.tax !== undefined) && (
-                  <dl className="mt-2">
-                    {tx.subtotal !== undefined && (
-                      <Row label="Subtotal" value={money(tx.subtotal)} />
-                    )}
-                    {tx.tax !== undefined && <Row label="Tax" value={money(tx.tax)} />}
-                  </dl>
-                )}
-              </>
-            )}
-
-            <dl className="mt-3">
-              <Row label="Total Amount" value={money(tx.total)} bold />
-            </dl>
-
-            <hr className="mt-4 border-t-2 border-gray-900" />
-
-            {tx.campaign && <Campaign campaign={tx.campaign} />}
-          </article>
-        </div>
+        <Printer active={!tx} />
+        <p className="sr-only" aria-live="polite">
+          {tx ? "Receipt loaded" : "Loading receipt"}
+        </p>
+        {tx && <PrintedReceipt tx={tx} />}
       </div>
     </div>
   );

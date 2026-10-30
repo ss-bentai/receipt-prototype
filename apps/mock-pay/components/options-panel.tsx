@@ -109,25 +109,30 @@ export function OptionsPanel({
           onChange={(on) => set("campaign", on ? campaignChoice : null)}
         >
           {options.campaign !== null && (
-            <div className="border-t border-slate-100 p-3.5 pt-3">
-              <select
-                aria-label="Campaign type"
-                value={options.campaign}
-                onChange={(e) => {
-                  onCampaignChoice(e.target.value);
-                  set("campaign", e.target.value);
-                }}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none"
-              >
-                {CAMPAIGN_KEYS.map((key) => (
-                  <option key={key} value={key}>
-                    {CAMPAIGNS[key].label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-sm text-slate-500">
-                {CAMPAIGNS[options.campaign].description}
-              </p>
+            <div className="space-y-2 border-t border-slate-100 p-3">
+              {CAMPAIGN_KEYS.map((key) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 transition has-checked:border-emerald-500 has-checked:bg-emerald-50"
+                >
+                  <input
+                    type="radio"
+                    name="campaign"
+                    checked={options.campaign === key}
+                    onChange={() => {
+                      onCampaignChoice(key);
+                      set("campaign", key);
+                    }}
+                    className="mt-1 accent-emerald-600"
+                  />
+                  <span>
+                    <span className="block font-medium">{CAMPAIGNS[key].label}</span>
+                    <span className="mt-0.5 block text-sm text-slate-500">
+                      {CAMPAIGNS[key].description}
+                    </span>
+                  </span>
+                </label>
+              ))}
             </div>
           )}
         </Switch>

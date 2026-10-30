@@ -8,8 +8,12 @@ import { BatteryIcon, CheckIcon, ContactlessIcon, WifiIcon } from "./icons";
 
 export type Phase = "ready" | "tapping" | "processing" | "approved" | "receipt" | "error";
 
+export type ScreenTheme = { from: string; to: string; accent: string };
+
 export type TerminalProps = {
   phase: Phase;
+  /** Colours of the payment app on the screen; the device itself stays the same. */
+  screen: ScreenTheme;
   cart: PricedCart;
   currency: string;
   receiptUrl?: string;
@@ -89,10 +93,10 @@ function SaleScreen({
       >
         <span className="relative flex h-24 w-24 items-center justify-center">
           {phase === "ready" && (
-            <span className="absolute inset-0 animate-ping rounded-full bg-sky-400/20" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-(--accent)/20" />
           )}
-          <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-sky-500/15 ring-1 ring-sky-400/40">
-            <ContactlessIcon className="h-10 w-10 text-sky-300" />
+          <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-(--accent)/15 ring-1 ring-(--accent)/40">
+            <ContactlessIcon className="h-10 w-10 text-(--accent)" />
           </span>
         </span>
         <span className="text-base font-semibold">
@@ -107,7 +111,7 @@ function SaleScreen({
 function ProcessingScreen() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
-      <span className="h-14 w-14 animate-spin rounded-full border-4 border-white/15 border-t-sky-400" />
+      <span className="h-14 w-14 animate-spin rounded-full border-4 border-white/15 border-t-(--accent)" />
       <div>
         <p className="text-lg font-semibold">Processing</p>
         <p className="mt-1 text-sm text-white/50">Please wait…</p>
@@ -154,7 +158,7 @@ function ReceiptScreen({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="font-semibold text-sky-300 underline underline-offset-2 hover:text-sky-200"
+          className="font-semibold text-(--accent) underline underline-offset-2 hover:opacity-80"
         >
           click here
         </a>
@@ -202,7 +206,13 @@ export function Terminal(props: TerminalProps) {
       <div className="mx-auto mb-3 h-1.5 w-32 rounded-full bg-black/70 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]" />
 
       <div
-        className="h-[480px] overflow-hidden rounded-[2rem] bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1120_70%)] text-white ring-1 ring-white/5"
+        className="h-[480px] overflow-hidden rounded-[2rem] text-white ring-1 ring-white/5"
+        style={
+          {
+            background: `radial-gradient(ellipse at top, ${props.screen.from} 0%, ${props.screen.to} 75%)`,
+            "--accent": props.screen.accent,
+          } as React.CSSProperties
+        }
         aria-live="polite"
       >
         <StatusBar />

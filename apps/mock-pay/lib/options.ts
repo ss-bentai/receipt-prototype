@@ -67,10 +67,11 @@ export type CampaignKey = keyof typeof CAMPAIGNS;
 export const CAMPAIGN_KEYS = Object.keys(CAMPAIGNS);
 
 // Keys must match apps/receipts/lib/providers.ts. The receipts app owns the
-// logos and colours; logos are served from {RECEIPTS_API_URL}/providers/{key}.png.
+// logos and receipt colours; logos are served from {RECEIPTS_API_URL}/providers/{key}.png.
+// `screen` is only for the simulated terminal's app UI here.
 export const PROVIDERS = {
-  fasspay: { label: "Fasspay" },
-  aeon: { label: "AEON" },
+  fasspay: { label: "Fasspay", screen: { from: "#1565d8", to: "#0a2a73", accent: "#38c8f5" } },
+  aeon: { label: "AEON", screen: { from: "#b23a8a", to: "#4a0f3a", accent: "#f7b3dd" } },
 } as const;
 
 export type ProviderKey = keyof typeof PROVIDERS;

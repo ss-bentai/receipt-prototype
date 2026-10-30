@@ -5,7 +5,7 @@ import { OptionsPanel, summarizeOptions } from "@/components/options-panel";
 import { PaymentCard } from "@/components/payment-card";
 import { Terminal, type Phase } from "@/components/terminal";
 import { cartForOrder, priceCart, randomOrder, type OrderLines } from "@/lib/cart";
-import { CAMPAIGN_KEYS, DEFAULT_OPTIONS, type PayOptions } from "@/lib/options";
+import { CAMPAIGN_KEYS, DEFAULT_OPTIONS, PROVIDERS, type PayOptions } from "@/lib/options";
 
 const CURRENCY = "MYR";
 const TAP_MS = 700;
@@ -69,7 +69,7 @@ export function Demo({ receiptsUrl }: { receiptsUrl: string }) {
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 py-6 lg:grid lg:grid-cols-[340px_1fr] lg:gap-12 lg:py-12">
       <aside className="lg:order-1">
-        <h1 className="text-xl font-semibold">Receipt Demo</h1>
+        <h1 className="text-xl font-semibold">Receipt Prototype</h1>
         <p className="mt-1 text-sm text-slate-500">
           Simulated card terminal for the e-receipt prototype.
         </p>
@@ -109,6 +109,7 @@ export function Demo({ receiptsUrl }: { receiptsUrl: string }) {
           <>
             <Terminal
               phase={phase}
+              screen={PROVIDERS[options.provider].screen}
               cart={priceCart(cart)}
               currency={CURRENCY}
               receiptUrl={receiptUrl}
