@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { OptionsPanel, summarizeOptions } from "@/components/options-panel";
 import { PaymentCard } from "@/components/payment-card";
+import { PencilIcon, SlidersIcon } from "@/components/icons";
 import { Terminal, type Phase } from "@/components/terminal";
 import { cartForOrder, priceCart, randomOrder, type OrderLines } from "@/lib/cart";
 import { CAMPAIGN_KEYS, DEFAULT_OPTIONS, PROVIDERS, type PayOptions } from "@/lib/options";
@@ -79,18 +80,41 @@ export function Demo({ receiptsUrl }: { receiptsUrl: string }) {
           type="button"
           onClick={() => setOptionsOpen((o) => !o)}
           aria-expanded={optionsOpen}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm lg:hidden"
+          aria-controls="receipt-options"
+          className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300 active:scale-[0.99] lg:hidden"
         >
-          <span className="min-w-0">
-            <span className="block font-medium">Receipt options</span>
-            <span className="block truncate text-slate-500">{summarizeOptions(options)}</span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <SlidersIcon className="h-5 w-5" />
           </span>
-          <span className="shrink-0 font-medium text-emerald-700">
-            {optionsOpen ? "Done" : "Edit"}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Receipt options</span>
+            <span className="mt-1.5 flex flex-wrap gap-1.5">
+              {summarizeOptions(options).map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                >
+                  {label}
+                </span>
+              ))}
+            </span>
           </span>
+          {optionsOpen ? (
+            <span className="shrink-0 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-700">
+              Done
+            </span>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm">
+              <PencilIcon className="h-3.5 w-3.5" />
+              Edit
+            </span>
+          )}
         </button>
 
-        <div className={`${optionsOpen ? "block" : "hidden"} mt-4 lg:mt-8 lg:block`}>
+        <div
+          id="receipt-options"
+          className={`${optionsOpen ? "block" : "hidden"} mt-4 lg:mt-8 lg:block`}
+        >
           <OptionsPanel
             options={options}
             campaignChoice={campaignChoice}
@@ -102,6 +126,13 @@ export function Demo({ receiptsUrl }: { receiptsUrl: string }) {
           {phase !== "ready" && (
             <p className="mt-3 text-xs text-slate-500">Options unlock when you start a new sale.</p>
           )}
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(false)}
+            className="mt-6 w-full rounded-xl bg-slate-900 py-3 font-semibold text-white lg:hidden"
+          >
+            Done
+          </button>
         </div>
       </aside>
 

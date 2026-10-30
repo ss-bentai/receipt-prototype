@@ -150,11 +150,11 @@ export function OptionsPanel({
   );
 }
 
-/** One-line summary of the chosen options, for the collapsed mobile bar. */
+/** Short labels for the chosen options, shown as chips in the collapsed mobile bar. */
 export function summarizeOptions(options: PayOptions) {
   return [
     PROVIDERS[options.provider].label,
     options.campaign ? CAMPAIGNS[options.campaign].label : "No campaign",
     options.itemized ? "Itemised" : "Amount only",
-  ].join(" · ");
+  ];
 }
