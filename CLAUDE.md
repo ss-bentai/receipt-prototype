@@ -15,7 +15,7 @@ apps/
     app/api/receipts/[id]/route.ts  GET: fetch receipt JSON by public ID
     app/r/[id]/page.tsx             Receipt page shell (server component)
     app/r/[id]/receipt-view.tsx     Client component: fetches the GET API, shows the printer while
-                                    loading, then "prints" the receipt top-down
+                                    loading, then slides the receipt out of it
     lib/schema.ts                   zod schema for the transaction payload + Receipt type
     lib/providers.ts                Payment providers (key -> label, logo, colour scheme)
     lib/id.ts                       22-char base62 receipt ID generator (CSPRNG, no modulo bias)
@@ -91,16 +91,19 @@ supabase/migrations/        # SQL for the `receipts` table
   (fictional "Contoh Bank"); built server-side at payment time.
 - The terminal's QR is not a link; "Or, click here" below it opens the receipt.
 - **Printing animation:** while loading, the receipt page shows an upside-down
-  terminal printer (`Printer`). Once loaded, the paper is revealed top-down
-  from its slot via a Web Animations clip-path, pausing with a small shudder
-  at each `data-print-break` (header, transaction, items, total). Skipped for
-  `prefers-reduced-motion`.
+  terminal printer (`Printer`) on a neutral background (provider colours apply
+  only once the receipt is known). Once loaded, the whole paper slides down out
+  of the slot (Web Animations `translateY`, clipped at the slot), so the
+  bottom edge leads and the header comes out last, like a real printer. It
+  pauses ~600 ms once the campaign (`data-print-pause`) is fully out so it
+  stays on screen longer. Skipped for `prefers-reduced-motion`.
 - mock-pay's terminal screen uses the selected provider's colours
   (`PROVIDERS[key].screen` in mock-pay's options); the device frame doesn't change.
 - Desktop (`sm`+): an "e-Receipt" bar with Print / Save PDF; print CSS drops
   the background and buttons.
-- Default styling: Fasspay palette tokens (`brand-navy`, `brand-blue`, `brand-sky`) in
-  `apps/receipts/app/globals.css`; `.torn-edges` gives the receipt zigzag edges.
+- Default (pre-load / non-receipt pages) background is a neutral slate
+  gradient in `apps/receipts/app/layout.tsx`; `.torn-edges` in `globals.css`
+  gives the receipt zigzag edges.
 - `GET /api/receipts/[id]` is public: anyone with the ID can read the receipt.
   Malformed IDs return 404 without a DB query.
 - POST status codes: 401 bad/missing key, 400 invalid JSON, 422 schema failure,

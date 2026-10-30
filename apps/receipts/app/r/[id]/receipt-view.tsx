@@ -113,28 +113,29 @@ function Printer({ active }: { active: boolean }) {
 
 const FEED_PX_PER_MS = 0.55;
 const START_DELAY_MS = 350;
-const HOLD_MS = 380;
+const CAMPAIGN_PAUSE_MS = 600;
+const CAMPAIGN_MARGIN_PX = 16; // pause with a little paper showing above the campaign
 
 /**
- * Keyframes that print the receipt top-down out of the slot: the paper is
- * revealed line by line (clip-path), pausing with a small shudder at each
- * section break like a thermal printer catching up. `pos` is how much paper
- * is out.
+ * Keyframes that slide the paper out of the printer slot like a real
+ * printer: the whole strip moves down, so its bottom edge leads. `pauseAt`
+ * is how much paper is out when the campaign has fully emerged; the feed
+ * holds there briefly so the campaign stays on screen a little longer.
  */
-function feedKeyframes(height: number, breaks: number[]) {
-  const points: { t: number; pos: number; x?: number; y?: number }[] = [{ t: 0, pos: 0 }];
+function feedKeyframes(height: number, pauseAt?: number) {
+  const stops = pauseAt && pauseAt > 0 && pauseAt < height ? [pauseAt, height] : [height];
+  const points = [
+    { t: 0, pos: 0 },
+    { t: START_DELAY_MS, pos: 0 },
+  ];
   let t = START_DELAY_MS;
   let pos = 0;
-  points.push({ t, pos });
-  for (const stop of [...breaks.filter((b) => b > 0 && b < height), height]) {
+  for (const stop of stops) {
     t += (stop - pos) / FEED_PX_PER_MS;
     pos = stop;
     points.push({ t, pos });
     if (stop < height) {
-      points.push({ t: t + HOLD_MS * 0.15, pos, x: 0.8, y: 1.5 });
-      points.push({ t: t + HOLD_MS * 0.3, pos, x: -0.8, y: -0.5 });
-      points.push({ t: t + HOLD_MS * 0.45, pos, x: 0.4, y: 0.8 });
-      t += HOLD_MS;
+      t += CAMPAIGN_PAUSE_MS;
       points.push({ t, pos });
     }
   }
@@ -142,9 +143,7 @@ function feedKeyframes(height: number, breaks: number[]) {
     duration: t,
     keyframes: points.map((p) => ({
       offset: p.t / t,
-      // Negative side insets keep the drop shadow visible.
-      clipPath: `inset(0 -40px ${height - p.pos}px -40px)`,
-      transform: `translate(${p.x ?? 0}px, ${p.y ?? 0}px)`,
+      transform: `translateY(${p.pos - height}px)`,
     })),
   };
 }
@@ -155,10 +154,11 @@ function usePrintAnimation(paperRef: React.RefObject<HTMLDivElement | null>) {
     const paper = paperRef.current;
     if (!paper || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const height = paper.offsetHeight;
-    const breaks = [...paper.querySelectorAll<HTMLElement>("[data-print-break]")].map(
-      (el) => el.offsetTop + el.offsetHeight,
+    const campaign = paper.querySelector<HTMLElement>("[data-print-pause]");
+    const { keyframes, duration } = feedKeyframes(
+      height,
+      campaign ? height - campaign.offsetTop + CAMPAIGN_MARGIN_PX : undefined,
     );
-    const { keyframes, duration } = feedKeyframes(height, breaks);
     const animation = paper.animate(keyframes, { duration, easing: "linear", fill: "backwards" });
     return () => animation.cancel();
   }, [paperRef]);
@@ -173,10 +173,11 @@ function PrintedReceipt({ tx }: { tx: Transaction }) {
   const provider = PROVIDERS[resolveProvider(tx.provider)];
 
   return (
-    <div className="pb-12 print:p-0">
+    // Clips the paper at the printer slot; side padding keeps the shadow visible.
+    <div className="-mx-4 overflow-hidden px-4 pb-12 print:m-0 print:overflow-visible print:p-0">
       <div ref={paperRef} className="relative drop-shadow-2xl print:drop-shadow-none">
         <article className="torn-edges bg-white px-6 pt-10 pb-12 text-[15px] leading-relaxed text-gray-900 sm:px-10 lg:text-base">
-          <header data-print-break className="text-center">
+          <header className="text-center">
             <img
               src={provider.logo.src}
               width={provider.logo.width}
@@ -192,7 +193,7 @@ function PrintedReceipt({ tx }: { tx: Transaction }) {
 
           <h2 className="mb-4 text-center text-xl font-extrabold uppercase">{title}</h2>
 
-          <dl data-print-break>
+          <dl>
             <Row label="Date/Time" value={formatTerminalTime(tx.timestamp)} />
             <Row label="MID" value={tx.terminal.mid} />
             <Row label="TID" value={tx.terminal.tid} />
@@ -210,7 +211,7 @@ function PrintedReceipt({ tx }: { tx: Transaction }) {
           </dl>
 
           {tx.items && (
-            <div data-print-break>
+            <div>
               <hr className="my-4 border-t border-dashed border-gray-400" />
               <ul>
                 {tx.items.map((item, i) => (
@@ -235,9 +236,13 @@ function PrintedReceipt({ tx }: { tx: Transaction }) {
             <Row label="Total Amount" value={money(tx.total)} bold />
           </dl>
 
-          <hr data-print-break className="mt-4 border-t-2 border-gray-900" />
+          <hr className="mt-4 border-t-2 border-gray-900" />
 
-          {tx.campaign && <Campaign campaign={tx.campaign} />}
+          {tx.campaign && (
+            <div data-print-pause>
+              <Campaign campaign={tx.campaign} />
+            </div>
+          )}
         </article>
       </div>
     </div>
